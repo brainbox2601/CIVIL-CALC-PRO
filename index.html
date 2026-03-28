@@ -9,6 +9,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<!-- Google Identity Services (what @react-oauth/google wraps under the hood) -->
+<script src="https://accounts.google.com/gsi/client" async></script>
 <style>
 /* ═══════════════════════════════════════════════
    DESIGN SYSTEM — Blueprint Industrial Dark
@@ -313,23 +315,61 @@ body::before {
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(14,165,233,0.4)}50%{box-shadow:0 0 0 6px rgba(14,165,233,0)}}
 .animate{animation:fadeUp 0.4s ease both}
 
-/* MOBILE SIDEBAR TOGGLE */
-.mob-toggle{display:none;position:fixed;bottom:20px;right:20px;z-index:100;width:48px;height:48px;border-radius:50%;background:var(--blue);border:none;color:#fff;font-size:1.3rem;cursor:pointer;box-shadow:0 4px 20px var(--blue-glow)}
-.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:90}
+/* ── MOBILE HAMBURGER TOGGLE ── */
+/* Hidden on desktop, visible below 1024px */
+.mob-toggle{
+  display:none;
+  position:fixed;top:14px;left:14px;z-index:200;
+  width:42px;height:42px;border-radius:8px;
+  background:var(--surface2);border:1px solid var(--border2);
+  color:var(--text);font-size:1.1rem;cursor:pointer;
+  align-items:center;justify-content:center;
+  box-shadow:0 2px 12px rgba(0,0,0,0.4);
+  transition:background 0.15s;
+}
+.mob-toggle:hover{background:var(--surface3)}
+
+/* Full-screen backdrop — solid dark, no blur, high z-index */
+.mob-overlay{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.75);
+  z-index:150; /* below sidebar, above everything else */
+  backdrop-filter:none; /* intentionally off — we want sharp overlay */
+}
 
 /* RESPONSIVE */
 @media(max-width:900px){
   .calc-layout{grid-template-columns:1fr}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
 }
-@media(max-width:700px){
+@media(max-width:1024px){
+  /* Collapse sidebar into off-canvas drawer */
   :root{--sidebar:0px}
   .app{grid-template-columns:1fr}
-  .sidebar{position:fixed;left:-260px;width:260px;z-index:95;transition:left 0.25s;height:100vh}
-  .sidebar.open{left:0}
-  .mob-toggle{display:flex;align-items:center;justify-content:center}
+
+  .sidebar{
+    position:fixed;
+    left:-280px;       /* fully off-screen when closed */
+    width:260px;
+    z-index:160;       /* above backdrop (150) */
+    transition:left 0.25s cubic-bezier(0.4,0,0.2,1);
+    height:100vh;
+    box-shadow:none;
+  }
+  .sidebar.open{
+    left:0;
+    box-shadow:4px 0 32px rgba(0,0,0,0.6); /* depth shadow when open */
+  }
+
+  /* Hamburger becomes visible */
+  .mob-toggle{display:flex}
+
+  /* Backdrop activates when sidebar is open */
   .mob-overlay.show{display:block}
-  .page-head{padding:18px 16px 0}
+
+  /* Shift page header right to avoid hamburger overlap */
+  .page-head{padding:18px 16px 0 64px}
   .page-body{padding:18px 16px}
   .stats-grid{grid-template-columns:1fr 1fr}
   .r-grid{grid-template-columns:1fr}
@@ -343,6 +383,14 @@ body::before {
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 /* ══════════════════════════════════════════════════
+   CONFIG
+   Set your Google Client ID here (from env or directly)
+══════════════════════════════════════════════════ */
+const GOOGLE_CLIENT_ID = (typeof process !== 'undefined' && process.env && process.env.GOOGLE_CLIENT_ID)
+  || window.__GOOGLE_CLIENT_ID__   // injected by a server template
+  || '';                           // fallback: Google button hidden when empty
+
+/* ══════════════════════════════════════════════════
    STORAGE UTILITIES
 ══════════════════════════════════════════════════ */
 const store = {
@@ -352,13 +400,98 @@ const store = {
 };
 
 /* ══════════════════════════════════════════════════
-   AUTH CONTEXT
+   FIX 1 — GAMIL GUARD
+   Detects common email provider typos and warns the user.
+   Checks on blur (when user leaves the field).
+══════════════════════════════════════════════════ */
+const TYPO_MAP = {
+  'gamil.com':   'gmail.com',
+  'gmai.com':    'gmail.com',
+  'gmial.com':   'gmail.com',
+  'gnail.com':   'gmail.com',
+  'yaho.com':    'yahoo.com',
+  'yahooo.com':  'yahoo.com',
+  'hotmai.com':  'hotmail.com',
+  'outlok.com':  'outlook.com',
+};
+
+function checkEmailTypo(email) {
+  if (!email || !email.includes('@')) return null;
+  const domain = email.split('@')[1]?.toLowerCase();
+  const correct = TYPO_MAP[domain];
+  if (correct) return `Possible typo? Did you mean @${correct}?`;
+  return null;
+}
+
+/* ══════════════════════════════════════════════════
+   FIX 3 — GOOGLE AUTH HELPERS
+   Decodes a Google JWT credential (no library needed —
+   the payload is just base64url encoded JSON).
+══════════════════════════════════════════════════ */
+function decodeGoogleJwt(token) {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    return JSON.parse(atob(base64));
+  } catch { return null; }
+}
+
+function loginWithGoogleCredential(credential, onLogin) {
+  const payload = decodeGoogleJwt(credential);
+  if (!payload) return;
+
+  const googleUser = {
+    id:      `google_${payload.sub}`,
+    name:    payload.name,
+    email:   payload.email,
+    role:    'Engineer',
+    picture: payload.picture,
+    joined:  new Date().toISOString(),
+    googleId: payload.sub,
+  };
+
+  // Merge into users list so subsequent email/password logins still work
+  const users = store.get('users') || [];
+  const existing = users.find(u => u.email === googleUser.email);
+  if (!existing) store.set('users', [...users, { ...googleUser, password: '' }]);
+
+  store.set('session', googleUser);
+  onLogin(googleUser);
+}
+
+/* ══════════════════════════════════════════════════
+   AUTH SCREEN
 ══════════════════════════════════════════════════ */
 function AuthScreen({ onLogin }) {
-  const [tab, setTab] = useState('login');
-  const [form, setForm] = useState({ name:'', email:'', password:'' });
-  const [err, setErr] = useState('');
+  const [tab, setTab]     = useState('login');
+  const [form, setForm]   = useState({ name:'', email:'', password:'' });
+  const [err, setErr]     = useState('');
+  const [emailWarn, setEmailWarn] = useState(''); // Fix 1: typo warning
+  const googleBtnRef      = useRef(null);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // Fix 1: check typo on blur
+  const handleEmailBlur = () => {
+    setEmailWarn(checkEmailTypo(form.email) || '');
+  };
+
+  // Fix 3: initialise Google Sign-In button when tab renders
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !window.google || !googleBtnRef.current) return;
+    try {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: ({ credential }) => loginWithGoogleCredential(credential, onLogin),
+      });
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        theme:  'filled_black',
+        size:   'large',
+        width:  '100%',
+        text:   'continue_with',
+        shape:  'rectangular',
+        logo_alignment: 'left',
+      });
+    } catch(e) { console.warn('[Google Auth] init failed:', e); }
+  }, [tab]);
 
   const handleLogin = () => {
     const users = store.get('users') || [];
@@ -379,6 +512,50 @@ function AuthScreen({ onLogin }) {
     onLogin(u);
   };
 
+  // Reusable email field with Fix 1 typo warning baked in
+  const EmailField = ({ onKeyDown }) => (
+    <div className="field">
+      <label>Email</label>
+      <input
+        type="email"
+        placeholder="engineer@firm.com"
+        value={form.email}
+        onChange={e => { set('email')(e); setEmailWarn(''); }}
+        onBlur={handleEmailBlur}
+        onKeyDown={onKeyDown}
+        style={emailWarn ? { borderColor:'var(--orange)' } : {}}
+      />
+      {/* Fix 1: Gamil Guard warning */}
+      {emailWarn && (
+        <div style={{
+          display:'flex', alignItems:'center', gap:6,
+          marginTop:6, padding:'6px 10px',
+          background:'rgba(245,158,11,0.1)',
+          border:'1px solid rgba(245,158,11,0.35)',
+          borderRadius:6, fontSize:'0.72rem',
+          fontFamily:'var(--mono)', color:'var(--orange)',
+        }}>
+          <span>⚠</span> {emailWarn}
+        </div>
+      )}
+    </div>
+  );
+
+  // Fix 3: Google button + divider
+  const GoogleSection = () => (
+    GOOGLE_CLIENT_ID ? (
+      <>
+        <div style={{ display:'flex', alignItems:'center', gap:10, margin:'18px 0 14px' }}>
+          <div style={{ flex:1, height:1, background:'var(--border)' }}/>
+          <span style={{ fontFamily:'var(--mono)', fontSize:'0.62rem', color:'var(--text3)', letterSpacing:'0.1em', textTransform:'uppercase' }}>or</span>
+          <div style={{ flex:1, height:1, background:'var(--border)' }}/>
+        </div>
+        {/* Google renders its button into this div */}
+        <div ref={googleBtnRef} style={{ width:'100%', minHeight:44 }}/>
+      </>
+    ) : null
+  );
+
   return (
     <div className="auth-screen">
       <div className="auth-card animate">
@@ -387,17 +564,22 @@ function AuthScreen({ onLogin }) {
           <div className="auth-logo-sub">Pro Engineering Suite</div>
         </div>
         <div className="auth-tabs">
-          <button className={`auth-tab${tab==='login'?' active':''}`} onClick={()=>{setTab('login');setErr('')}}>Sign In</button>
-          <button className={`auth-tab${tab==='signup'?' active':''}`} onClick={()=>{setTab('signup');setErr('')}}>Create Account</button>
+          <button className={`auth-tab${tab==='login'?' active':''}`} onClick={()=>{setTab('login');setErr('');setEmailWarn('');}}>Sign In</button>
+          <button className={`auth-tab${tab==='signup'?' active':''}`} onClick={()=>{setTab('signup');setErr('');setEmailWarn('');}}>Create Account</button>
         </div>
+
         {tab === 'login' ? (
           <>
             <div className="auth-title">Welcome back</div>
             <div className="auth-sub">Sign in to access your saved calculations.</div>
             {err && <div className="auth-error">{err}</div>}
-            <div className="field"><label>Email</label><input type="email" placeholder="engineer@firm.com" value={form.email} onChange={set('email')} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/></div>
-            <div className="field"><label>Password</label><input type="password" placeholder="••••••••" value={form.password} onChange={set('password')} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/></div>
+            <EmailField onKeyDown={e=>e.key==='Enter'&&handleLogin()}/>
+            <div className="field">
+              <label>Password</label>
+              <input type="password" placeholder="••••••••" value={form.password} onChange={set('password')} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/>
+            </div>
             <button className="btn" onClick={handleLogin}>Sign In</button>
+            <GoogleSection/>
             <div style={{textAlign:'center',marginTop:16,fontSize:'0.78rem',color:'var(--text3)'}}>
               Demo: <span style={{fontFamily:'var(--mono)',color:'var(--blue)',cursor:'pointer'}} onClick={()=>{store.set('users',[{id:1,name:'Demo Engineer',email:'demo@test.com',password:'demo123',role:'Structural Engineer',joined:new Date().toISOString()}]);setForm({email:'demo@test.com',password:'demo123',name:''});setTimeout(handleLogin,100)}}>use demo account</span>
             </div>
@@ -408,9 +590,10 @@ function AuthScreen({ onLogin }) {
             <div className="auth-sub">Start saving and organizing your calculations.</div>
             {err && <div className="auth-error">{err}</div>}
             <div className="field"><label>Full Name</label><input placeholder="Nuhu Abdulbasit" value={form.name} onChange={set('name')}/></div>
-            <div className="field"><label>Email</label><input type="email" placeholder="engineer@firm.com" value={form.email} onChange={set('email')}/></div>
+            <EmailField onKeyDown={undefined}/>
             <div className="field"><label>Password</label><input type="password" placeholder="Min. 6 characters" value={form.password} onChange={set('password')}/></div>
             <button className="btn" onClick={handleSignup}>Create Account</button>
+            <GoogleSection/>
           </>
         )}
       </div>
@@ -419,23 +602,45 @@ function AuthScreen({ onLogin }) {
 }
 
 /* ══════════════════════════════════════════════════
-   HISTORY HOOK
+   FIX 4 — HISTORY HOOK (Auth Persistence)
+   Problem: useState initializer runs once at mount.
+   If userId changes after mount (e.g. after login),
+   the history state stays stale until refresh.
+
+   Fix: useEffect re-reads from localStorage whenever
+   userId changes, so the count is always correct
+   immediately after login — no refresh needed.
 ══════════════════════════════════════════════════ */
 function useHistory(userId) {
   const key = `history_${userId}`;
-  const [history, setHistory] = useState(() => store.get(key) || []);
+
+  // Start with empty array — useEffect fills it immediately after mount
+  const [history, setHistory] = useState([]);
+
+  // Fix 4: sync from localStorage whenever userId becomes available
+  useEffect(() => {
+    if (userId) {
+      setHistory(store.get(`history_${userId}`) || []);
+    } else {
+      setHistory([]);
+    }
+  }, [userId]); // re-run when user changes (login / logout)
+
   const save = useCallback((type, inputs, results, summary) => {
     const entry = { id: Date.now(), type, inputs, results, summary, date: new Date().toISOString() };
     const h = [entry, ...((store.get(key)||[]).slice(0,49))];
     store.set(key, h);
     setHistory(h);
   }, [key]);
+
   const remove = useCallback(id => {
     const h = (store.get(key)||[]).filter(e => e.id !== id);
     store.set(key, h);
     setHistory(h);
   }, [key]);
+
   const clear = useCallback(() => { store.set(key,[]); setHistory([]); }, [key]);
+
   return { history, save, remove, clear };
 }
 
@@ -1479,8 +1684,10 @@ function App() {
         </main>
       </div>
 
-      {/* MOBILE */}
-      <button className="mob-toggle" onClick={()=>setSideOpen(o=>!o)}>☰</button>
+      {/* MOBILE HAMBURGER — top-left, visible below 1024px */}
+      <button className="mob-toggle" onClick={()=>setSideOpen(o=>!o)} aria-label="Toggle menu">
+        {sideOpen ? '✕' : '☰'}
+      </button>
       <div className={`mob-overlay${sideOpen?' show':''}`} onClick={()=>setSideOpen(false)}/>
     </>
   );
