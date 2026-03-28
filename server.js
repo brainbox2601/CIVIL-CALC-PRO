@@ -16,6 +16,15 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
+const path = require('path'); // You need the path utility
+
+// This tells the server to serve your calculator files
+app.use(express.static(path.join(__dirname, './')));
+
+// This ensures that when you visit the site, it loads the frontend
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // ── DATABASE CONNECTION ──────────────────────────────────────
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/civilcalc')
