@@ -3,6 +3,25 @@
 // CivilCalc Pro — Express backend with Supabase auth
 // ─────────────────────────────────────────────────────────────
 
+const path = require('path'); // Add this at the very top with other requires
+
+// ... existing middleware ...
+
+// ── ROUTES ────────────────────────────────────────────────────
+app.use('/api/auth',         authLimiter, authRoutes);
+app.use('/api/calculations', calculationRoutes);
+
+// ── FRONTEND SERVING ──────────────────────────────────────────
+// 1. Serve static files (CSS, JS, Images) from the 'public' folder
+app.use(express.static(path.join(__dirname, '../public')));
+
+// 2. The "Catch-all": If a request isn't for an API route, send index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public', 'index.html'));
+});
+
+// ── GLOBAL ERROR HANDLER ──────────────────────────────────────
+// ... (keep your existing error handler below this)
 require('dotenv').config();
 const express    = require('express');
 const cors       = require('cors');
