@@ -2,33 +2,28 @@
   "name": "civil-calc-pro",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://civil-calc-pro.vercel.app",
+  "main": "src/server.js",
   "scripts": {
-    "start":  "react-scripts start",
-    "build":  "react-scripts build",
-    "test":   "react-scripts test",
-    "eject":  "react-scripts eject"
+    "start": "node src/server.js",
+    "dev":   "nodemon src/server.js",
+    "build": "echo 'No build step required'"
   },
   "dependencies": {
-    "react":              "^18.2.0",
-    "react-dom":          "^18.2.0",
-    "react-scripts":      "5.0.1",
-    "@react-oauth/google":"^0.12.1",
-    "chart.js":           "^4.4.0",
-    "react-chartjs-2":    "^5.2.0"
+    "@supabase/supabase-js": "^2.39.0",
+    "bcryptjs":              "^2.4.3",
+    "cors":                  "^2.8.5",
+    "dotenv":                "^16.3.1",
+    "express":               "^4.18.2",
+    "jsonwebtoken":          "^9.0.2"
   },
   "devDependencies": {
-    "@types/react":       "^18.2.0",
-    "@types/react-dom":   "^18.2.0"
+    "nodemon": "^3.0.2"
   },
-  "eslintConfig": {
-    "extends": ["react-app"]
-  },
-  "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
-    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
+
 
 
 
