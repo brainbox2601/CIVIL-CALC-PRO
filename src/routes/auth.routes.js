@@ -14,7 +14,7 @@
 
 const express    = require('express');
 const router     = express.Router();
-const { supabaseAdmin, supabaseAnon } = require('./lib/supabaseclient');
+const { supabaseAdmin, supabaseAnon } = require('../lib/supabaseclient');
 const { authenticate } = require('./middleware/auth.middleware');
 
 // ── REGISTER ──────────────────────────────────────────────────
