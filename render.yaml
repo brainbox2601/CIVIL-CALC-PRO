@@ -3,7 +3,8 @@ services:
     name: civil-calc-pro-api
     env: node
     buildCommand: npm install
-    startCommand: node src/server.js
+    startCommand: npm start  # This triggers "node src/server.js" from package.json
     envVars:
       - key: NODE_ENV
         value: production
+
