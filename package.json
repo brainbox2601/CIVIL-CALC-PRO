@@ -1,11 +1,10 @@
 {
   "name": "civil-calc-pro",
   "version": "1.0.0",
-  "type": "module",
   "description": "Backend API and frontend for CivilCalc",
-  "main": "server.js",
+  "main": "server.cjs",
   "scripts": {
-    "start": "node server.js",
+    "start": "node server.cjs",
     "build": "npm install"
   },
   "dependencies": {
@@ -17,5 +16,6 @@
     "mongoose": "^7.0.0"
   }
 }
+
 
 
