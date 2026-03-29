@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Backend API and frontend for CivilCalc Pro",
   "main": "server.js",
-  "scripts": {
+  "scripts": {"build"}
     "start": "node server.js"
   },
   "dependencies": {
