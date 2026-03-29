@@ -26,9 +26,8 @@
 
 const express  = require('express');
 const router   = express.Router();
-const { supabaseAdmin }  = require('../lib/supabaseclient');
-const { authenticate }   = require('../middleware/auth.middleware');
-
+const { supabaseAdmin } = require('./lib/supabaseclient');
+const { authenticate } = require('./middleware/auth.middleware');
 // All calculations routes require a valid session
 router.use(authenticate);
 
