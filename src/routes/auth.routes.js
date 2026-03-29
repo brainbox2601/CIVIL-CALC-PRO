@@ -14,8 +14,8 @@
 
 const express    = require('express');
 const router     = express.Router();
-const { supabaseAdmin, supabaseAnon } = require('../lib/supabaseclient');
-const { authenticate } = require('../middleware/auth.middleware');
+const { supabaseAdmin, supabaseAnon } = require('./lib/supabaseclient');
+const { authenticate } = require('./middleware/auth.middleware');
 
 // ── REGISTER ──────────────────────────────────────────────────
 // Creates user in Supabase Auth + stores name in user_metadata
