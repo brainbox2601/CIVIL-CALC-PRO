@@ -1700,14 +1700,28 @@ const PAGE_META={
 };
 
 function App() {
-  const [user,setUser]=useState(()=>store.get('session'));
+  const [user,setUser]=useState(null);
+  const [loading,setLoading]=useState(true);
   const [page,setPage]=useState('home');
   const [sideOpen,setSideOpen]=useState(false);
   const { history,save,remove,clear }=useHistory(user?.id);
 
+  useEffect(()=>{
+    getCurrentUser()
+      .then(u=>{ if(u) setUser(u); })
+      .catch(()=>tokenStore.clear())
+      .finally(()=>setLoading(false));
+  },[]);
+
+  if(loading) return(
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div style={{fontFamily:'var(--mono)',color:'var(--text3)',fontSize:'0.8rem',letterSpacing:'0.2em'}}>LOADING...</div>
+    </div>
+  );
+
   if(!user) return <AuthScreen onLogin={u=>{setUser(u);setPage('home');}}/>;
 
-  const logout=()=>{store.del('session');setUser(null);};
+  const logout=async()=>{await logoutUser();setUser(null);};
   const navigate=id=>{setPage(id);setSideOpen(false);};
   const meta=PAGE_META[page]||PAGE_META.home;
   const initials=user.name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
