@@ -17,10 +17,19 @@ const PORT = process.env.PORT || 5000;
 // ── MIDDLEWARE ────────────────────────────────────────────────
 app.use(express.json({ limit: '10kb' }));
 app.use(cors({
-  origin:      process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function(origin, callback) {
+    const allowed = [
+      'https://civil-calc-pro.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:5173',
+    ];
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    if (allowed.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  },
   credentials: true,
 }));
-
 // Rate limiting — tighter on auth endpoints
 const generalLimiter = rateLimit({ windowMs: 15*60*1000, max: 200 });
 const authLimiter    = rateLimit({
