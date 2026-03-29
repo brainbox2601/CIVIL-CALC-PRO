@@ -2,7 +2,7 @@
   "name": "civil-calc-pro",
   "version": "1.0.0",
   "description": "Backend API and frontend for CivilCalc",
-  "main": "server.cjs",
+  "main": "server.js",
   "scripts": {
     "start": "node server.cjs",
     "build": "npm install"
