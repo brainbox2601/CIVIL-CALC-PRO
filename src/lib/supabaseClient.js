@@ -1,7 +1,15 @@
-import { createClient } from '@supabase/supabase-js'
+// src/lib/supabaseclient.js
+const { createClient } = require('@supabase/supabase-js')
+require('dotenv').config()
 
-// This pulls the values from your .env file automatically
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+)
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const supabaseAnon = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+)
+
+module.exports = { supabaseAdmin, supabaseAnon }
