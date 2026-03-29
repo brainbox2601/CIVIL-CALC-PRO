@@ -1,15 +1,26 @@
-// src/lib/supabaseclient.js
-const { createClient } = require('@supabase/supabase-js')
-require('dotenv').config()
+require('dotenv').config();
+const { createClient } = require('@supabase/supabase-js');
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-)
+  process.env.SUPABASE_SERVICE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
+);
 
 const supabaseAnon = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-)
+  process.env.SUPABASE_ANON_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
+);
 
-module.exports = { supabaseAdmin, supabaseAnon }
+module.exports = { supabaseAdmin, supabaseAnon };
