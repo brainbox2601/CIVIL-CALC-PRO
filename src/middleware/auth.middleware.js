@@ -12,7 +12,7 @@
 // Supabase handles ALL of that for you automatically.
 // ─────────────────────────────────────────────────────────────
 
-const { supabaseAdmin } = require('../lib/supabaseclient');
+const { supabaseAdmin } = require('./lib/supabaseclient');
 
 const authenticate = async (req, res, next) => {
   try {
