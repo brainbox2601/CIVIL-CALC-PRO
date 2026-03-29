@@ -1,20 +1,19 @@
 {
   "name": "civil-calc-pro",
   "version": "1.0.0",
-  "description": "Backend API and frontend for CivilCalc Pro",
+  "description": "Backend API and frontend for CivilCalc",
   "main": "server.js",
-      "scripts": {
-      "start": "node server.js",
-      "build": "npm install"
-    },
-
+  "scripts": {
+    "start": "node server.js",
+    "build": "npm install"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
     "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.0",
+    "jsonweb_token": "^9.0.0",
     "mongoose": "^7.0.0"
   }
 }
+
