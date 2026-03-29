@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "description": "Backend API and frontend for CivilCalc Pro",
   "main": "server.js",
-  "scripts": {"build"}
-    "start": "node server.js"
+      "scripts": {
+      "start": "node server.js",
+      "build": "npm install"
+    },
+
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
