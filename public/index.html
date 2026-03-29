@@ -382,12 +382,95 @@ body::before {
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
-   const API = 'https://civil-calc-pro-1.onrender.com/api';
-```
+  const API = 'https://civil-calc-pro-1.onrender.com/api';
 
-Then you can test your backend is working right now by visiting:
-```
-https://civil-calc-pro-1.onrender.com/health
+const tokenStore = {
+  get:    ()     => localStorage.getItem('cc_token'),
+  getR:   ()     => localStorage.getItem('cc_refresh'),
+  set:    (a, r) => { localStorage.setItem('cc_token', a); localStorage.setItem('cc_refresh', r); },
+  clear:  ()     => { localStorage.removeItem('cc_token'); localStorage.removeItem('cc_refresh'); },
+};
+
+async function apiCall(path, options = {}) {
+  const token = tokenStore.get();
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (refreshed) return apiCall(path, options);
+    tokenStore.clear();
+    window.location.reload();
+    return;
+  }
+  return res.json();
+}
+
+async function tryRefresh() {
+  const refreshToken = tokenStore.getR();
+  if (!refreshToken) return false;
+  try {
+    const res = await fetch(`${API}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      tokenStore.set(data.data.accessToken, data.data.refreshToken);
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+async function loginUser(email, password) {
+  const data = await apiCall('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  if (data.success) {
+    tokenStore.set(data.data.accessToken, data.data.refreshToken);
+    return data.data.user;
+  }
+  throw new Error(data.message);
+}
+
+async function registerUser(name, email, password) {
+  const data = await apiCall('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ name, email, password }),
+  });
+  if (data.success) {
+    tokenStore.set(data.data.accessToken, data.data.refreshToken);
+    return data.data.user;
+  }
+  throw new Error(data.message);
+}
+
+async function logoutUser() {
+  await apiCall('/auth/logout', { method: 'POST' });
+  tokenStore.clear();
+}
+
+async function getCurrentUser() {
+  const token = tokenStore.get();
+  if (!token) return null;
+  const data = await apiCall('/auth/me');
+  return data && data.success ? data.data : null;
+}
+
+async function saveCalculation(type, inputs, results, summary) {
+  return apiCall('/calculations', {
+    method: 'POST',
+    body: JSON.stringify({ type, inputs, results, summary }),
+  });
+}
 
 /* ══════════════════════════════════════════════════
    CONFIG
