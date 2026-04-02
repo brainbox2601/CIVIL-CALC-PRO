@@ -101,8 +101,7 @@ body::before {
 .auth-error{background:var(--red-dim);border:1px solid rgba(239,68,68,0.3);color:var(--red);padding:10px 14px;border-radius:var(--radius);font-size:0.82rem;margin-bottom:16px}
 
 /* ── APP LAYOUT ── */
-.app{display:grid;grid-template-columns:var(--sidebar) 1fr;min-height:100vh;position:relative;z-index:1}
-
+.app{display:grid;grid-template-columns:var(--sidebar) 1fr;min-height:100vh;}
 /* ── SIDEBAR ── */
 .sidebar{
   background:var(--surface);border-right:1px solid var(--border);
@@ -348,18 +347,19 @@ body::before {
   :root{--sidebar:0px}
   .app{grid-template-columns:1fr}
 
-  .sidebar{
+ .sidebar{
     position:fixed;
-    left:-280px;       /* fully off-screen when closed */
+    left:0;
+    transform:translateX(-280px);
     width:260px;
-    z-index:160;       /* above backdrop (150) */
-    transition:left 0.25s cubic-bezier(0.4,0,0.2,1);
+    z-index:160;
+    transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);
     height:100vh;
     box-shadow:none;
   }
   .sidebar.open{
-    left:0;
-    box-shadow:4px 0 32px rgba(0,0,0,0.6); /* depth shadow when open */
+    transform:translateX(0);
+    box-shadow:4px 0 32px rgba(0,0,0,0.6);
   }
 
   /* Hamburger becomes visible */
@@ -1706,12 +1706,17 @@ function App() {
   const [sideOpen,setSideOpen]=useState(false);
   const { history,save,remove,clear }=useHistory(user?.id);
 
-  useEffect(()=>{
+ useEffect(()=>{
     getCurrentUser()
       .then(u=>{ if(u) setUser(u); })
       .catch(()=>tokenStore.clear())
       .finally(()=>setLoading(false));
   },[]);
+
+  useEffect(()=>{
+    document.body.style.overflow = sideOpen ? 'hidden' : '';
+    return ()=>{ document.body.style.overflow = ''; };
+  },[sideOpen]);
 
   if(loading) return(
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>
