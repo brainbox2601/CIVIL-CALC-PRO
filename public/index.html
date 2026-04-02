@@ -1599,19 +1599,9 @@ function ProfilePage({ user, history, onLogout }) {
         )}
       </div>
       <div className="profile-card">
-        <div style={{fontWeight:700,marginBottom:12}}>Deployment Guide</div>
+        <div style={{fontWeight:700,marginBottom:12}}>AUTHOR</div>
         {[
-          {plat:'Netlify',steps:'1. Push code to GitHub  2. Connect Netlify to repo  3. Deploy frontend instantly',tag:'Frontend (Free)'},
-          {plat:'Vercel',steps:'1. vercel login  2. vercel --prod in project root  3. Get live URL',tag:'Frontend (Free)'},
-          {plat:'Render',steps:'1. Push backend to GitHub  2. New Web Service → Node  3. Set env vars → Deploy',tag:'Backend ($7/mo)'},
-          {plat:'MongoDB Atlas',steps:'1. Create cluster (free tier)  2. Get connection string  3. Add to MONGODB_URI env var',tag:'Database (Free)'},
-        ].map(d=>(
-          <div key={d.plat} style={{padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
-            <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
-              <span style={{fontWeight:700,fontSize:'0.9rem'}}>{d.plat}</span>
-              <span className="tag blue">{d.tag}</span>
-            </div>
-            <div style={{fontSize:'0.78rem',color:'var(--text2)',fontFamily:'var(--mono)',lineHeight:1.7}}>{d.steps}</div>
+          {plat:'NAME',NUHU ABDULBASIT'},
           </div>
         ))}
       </div>
